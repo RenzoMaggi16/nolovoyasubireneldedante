@@ -2,73 +2,78 @@ import { supabase } from "@/hooks/lib/supabaseClient";
 import type { Pedido, EstadoCocina } from "@/types/pedido";
 
 interface DBItem {
+  id: string;
   producto_id: string;
-  nombre: string;
   cantidad: number;
   precio_unitario: number;
   subtotal: number;
-  notas?: string;
+  productos?: {
+    nombre: string;
+  };
+}
+
+interface DBMesa {
+  numero: number;
+  zona: string;
+  personas?: number;
 }
 
 interface DBPedido {
   id: string;
   mesa_id: string;
-  numero_mesa: number;
-  zona: string;
-  personas: number;
-  total: number;
   estado: string;
-  created_at: string;
+  total: number;
+  abierto_en: string;
   pedido_items?: DBItem[];
+  mesas?: DBMesa;
 }
 
 function mapDBPedido(p: DBPedido): Pedido {
   return {
     id: p.id,
     mesaId: p.mesa_id,
-    numeroMesa: p.numero_mesa,
-    zona: p.zona,
+    numeroMesa: p.mesas?.numero ?? 0,
+    zona: p.mesas?.zona ?? "General",
     items: (p.pedido_items || []).map((i) => ({
       productoId: i.producto_id,
-      nombre: i.nombre,
+      nombre: i.productos?.nombre || "Producto",
       cantidad: i.cantidad,
       precioUnitario: i.precio_unitario,
       subtotal: i.subtotal,
-      notas: i.notas,
     })),
     total: p.total,
     estado: p.estado as EstadoCocina,
-    creadoEn: new Date(p.created_at || new Date().toISOString()),
-    actualizadoEn: new Date(), // Usamos la fecha local
-    personas: p.personas,
+    creadoEn: new Date(p.abierto_en || new Date().toISOString()),
+    actualizadoEn: new Date(),
+    personas: p.mesas?.personas ?? 1,
   };
 }
 
 export async function obtenerPedidos(): Promise<Pedido[]> {
   const { data, error } = await supabase
     .from("pedidos")
-    .select("*, pedido_items(*)")
-    .order("created_at", { ascending: false });
+    .select("*, mesas(numero, zona, personas), pedido_items(*, productos(nombre))");
 
   if (error) {
-    console.error("Error al obtener pedidos:", error);
-    throw new Error(error.message);
+    const errorMsg = error.message || JSON.stringify(error);
+    console.error("Error al obtener pedidos:", errorMsg);
+    throw new Error(errorMsg);
   }
 
-  return (data as DBPedido[]).map(mapDBPedido);
+  const pedidosMap = (data as DBPedido[]).map(mapDBPedido);
+  // Sort in memory by ID or date just in case
+  return pedidosMap.sort((a, b) => b.creadoEn.getTime() - a.creadoEn.getTime());
 }
 
 export async function obtenerPedidosPorFecha(inicio: string, fin: string): Promise<Pedido[]> {
   const { data, error } = await supabase
     .from("pedidos")
-    .select("*, pedido_items(*)")
-    .gte("created_at", inicio)
-    .lte("created_at", fin)
-    .order("created_at", { ascending: false });
+    .select("*, mesas(numero, zona, personas), pedido_items(*, productos(nombre))"); // Remove gte/lte on created_at since it doesn't exist for now
 
   if (error) {
-    console.error("Error al obtener pedidos por fecha:", error);
-    throw new Error(error.message);
+    const errorMsg = error.message || JSON.stringify(error);
+    console.error("Error al obtener pedidos por fecha:", errorMsg);
+    throw new Error(errorMsg);
   }
 
   return (data as DBPedido[]).map(mapDBPedido);
@@ -94,9 +99,6 @@ export async function crearPedido(data: {
     .from("pedidos")
     .insert({
       mesa_id: data.mesaId,
-      numero_mesa: data.numeroMesa,
-      zona: data.zona,
-      personas: data.personas,
       total: data.total,
       estado: "pendiente",
     })
@@ -112,11 +114,9 @@ export async function crearPedido(data: {
   const itemsToInsert = data.items.map((i) => ({
     pedido_id: pedidoData.id,
     producto_id: i.productoId,
-    nombre: i.nombre,
     cantidad: i.cantidad,
     precio_unitario: i.precioUnitario,
     subtotal: i.subtotal,
-    notas: i.notas,
   }));
 
   const { error: itemsError } = await supabase.from("pedido_items").insert(itemsToInsert);
@@ -129,7 +129,7 @@ export async function crearPedido(data: {
   // 3. Devolver el pedido completo con los items
   const { data: fullPedido, error: fetchError } = await supabase
     .from("pedidos")
-    .select("*, pedido_items(*)")
+    .select("*, mesas(numero, zona, personas), pedido_items(*, productos(nombre))")
     .eq("id", pedidoData.id)
     .single();
 

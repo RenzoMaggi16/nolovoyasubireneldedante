@@ -2,23 +2,27 @@ import { supabase } from "../supabaseClient";
 import type { Producto, Categoria } from "@/types/producto";
 
 export async function obtenerCategorias(): Promise<Categoria[]> {
-  const { data, error } = await supabase.from('categorias').select('*').order('nombre');
+  try {
+    const res = await fetch('/api/categorias');
+    if (!res.ok) {
+      throw new Error("Error en el proxy de categorias");
+    }
+    const data = await res.json();
 
-  if (error) {
-    console.error("Error al obtener categorías de Supabase:", error);
+    // Deduplicación por nombre ignorando mayúsculas/minúsculas
+    const unicas = new Map<string, Categoria>();
+    (data || []).forEach((cat: any) => {
+      const nameLower = cat.nombre.trim().toLowerCase();
+      if (!unicas.has(nameLower)) {
+        unicas.set(nameLower, cat);
+      }
+    });
+
+    return Array.from(unicas.values());
+  } catch (error: any) {
+    console.error("Error al obtener categorías:", error);
     throw new Error(error.message);
   }
-
-  // Deduplicación por nombre ignorando mayúsculas/minúsculas
-  const unicas = new Map<string, Categoria>();
-  (data || []).forEach((cat) => {
-    const nameLower = cat.nombre.trim().toLowerCase();
-    if (!unicas.has(nameLower)) {
-      unicas.set(nameLower, cat);
-    }
-  });
-
-  return Array.from(unicas.values());
 }
 
 export async function obtenerProductos(): Promise<Producto[]> {
@@ -85,14 +89,40 @@ export async function crearProducto(data: {
 }
 
 export async function eliminarProducto(id: string) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('productos')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .select();
 
   if (error) {
     console.error("Error al eliminar producto en Supabase:", error);
     throw new Error(error.message);
+  }
+
+  if (!data || data.length === 0) {
+    console.warn(`No se pudo eliminar el producto con ID ${id}. Posible problema de permisos (RLS) en Supabase.`);
+    throw new Error("No se pudo eliminar el producto. Verifica las políticas (RLS) en Supabase para UPDATE/DELETE.");
+  }
+
+  return { success: true };
+}
+
+export async function actualizarStockBD(id: string, stockActual: number) {
+  const { data, error } = await supabase
+    .from('productos')
+    .update({ stock_actual: stockActual })
+    .eq('id', id)
+    .select();
+
+  if (error) {
+    console.error("Error al actualizar stock en Supabase:", error);
+    throw new Error(error.message);
+  }
+
+  if (!data || data.length === 0) {
+    console.warn(`No se pudo actualizar el stock del producto con ID ${id}. Posible problema de permisos (RLS) en Supabase.`);
+    throw new Error("No se pudo actualizar el stock. Verifica las políticas (RLS) en Supabase para UPDATE/DELETE.");
   }
 
   return { success: true };

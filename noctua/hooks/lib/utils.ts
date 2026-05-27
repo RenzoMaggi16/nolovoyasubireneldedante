@@ -20,8 +20,8 @@ export function formatARS(amount: number): string {
 /**
  * Format elapsed time from a Date as HH:MM:SS
  */
-export function formatElapsed(from: Date): string {
-  const diff = Math.floor((Date.now() - from.getTime()) / 1000);
+export function formatElapsed(from: Date | string): string {
+  const diff = Math.floor((Date.now() - new Date(from).getTime()) / 1000);
   const h = Math.floor(diff / 3600);
   const m = Math.floor((diff % 3600) / 60);
   const s = diff % 60;
@@ -32,8 +32,8 @@ export function formatElapsed(from: Date): string {
 /**
  * Return elapsed minutes from a Date
  */
-export function elapsedMinutes(from: Date): number {
-  return Math.floor((Date.now() - from.getTime()) / 60000);
+export function elapsedMinutes(from: Date | string): number {
+  return Math.floor((Date.now() - new Date(from).getTime()) / 60000);
 }
 
 function pad(n: number): string {

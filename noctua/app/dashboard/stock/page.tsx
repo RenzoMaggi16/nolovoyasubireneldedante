@@ -2,7 +2,7 @@
 
 import { memo, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Minus, TrendingUp, X, PackagePlus } from "lucide-react";
+import { Plus, TrendingUp, X, PackagePlus, Pencil, Trash2 } from "lucide-react";
 import { useStockStore } from "@/store/stockStore";
 import { Toggle } from "@/components/ui/Toggle";
 import { formatARS, cn } from "@/hooks/lib/utils";
@@ -212,15 +212,144 @@ function ModalNuevoProducto({
   );
 }
 
+// ── Modal Editar Producto ────────────────────────────────────────────────────────
+
+function ModalEditarProducto({
+  producto,
+  onClose,
+}: {
+  producto: Producto;
+  onClose: () => void;
+}) {
+  const actualizarStockProducto = useStockStore((s) => s.actualizarStockProducto);
+  const eliminarProductoStore = useStockStore((s) => s.eliminarProductoStore);
+  
+  const [stock, setStock] = useState(String(producto.stock ?? 0));
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleGuardar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const stockNum = parseInt(stock);
+    if (isNaN(stockNum) || stockNum < 0) return setError("Stock inválido.");
+
+    try {
+      setGuardando(true);
+      await actualizarStockProducto(producto.id, stockNum);
+      onClose();
+    } catch (err: any) {
+      setError(err?.message || "No se pudo actualizar el stock.");
+      setGuardando(false);
+    }
+  };
+
+  const handleEliminar = async () => {
+    if (confirm("¿Estás seguro de que deseas eliminar este producto?")) {
+      try {
+        setGuardando(true);
+        await eliminarProductoStore(producto.id);
+        onClose();
+      } catch (err: any) {
+        setError(err?.message || "No se pudo eliminar el producto.");
+        setGuardando(false);
+      }
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 16, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 8, scale: 0.97 }}
+        transition={{ duration: 0.2 }}
+        className="bg-[#0a0a0a] border border-[#1e1e1e] rounded-2xl p-6 w-full max-w-md shadow-2xl"
+      >
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <Pencil size={18} className="text-white" />
+            <h2 className="text-white font-bold text-base tracking-wide">
+              Editar {producto.nombre}
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Cerrar modal"
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#1a1a1a] text-[#676B67] hover:text-white hover:bg-[#2a2a2a] transition-colors"
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        <form onSubmit={handleGuardar} className="space-y-4">
+          <div>
+            <label
+              htmlFor="edit-stock"
+              className="block text-xs text-[#676B67] font-semibold tracking-widest uppercase mb-1.5"
+            >
+              Stock Actual
+            </label>
+            <input
+              id="edit-stock"
+              type="number"
+              min="0"
+              value={stock}
+              onChange={(e) => setStock(e.target.value)}
+              className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#3a3a3a] transition-colors"
+            />
+          </div>
+
+          {error && <p className="text-red-400 text-xs">{error}</p>}
+
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              onClick={handleEliminar}
+              disabled={guardando}
+              className="px-4 py-2.5 rounded-xl bg-[#111] border border-red-500/20 text-sm text-red-400 hover:bg-red-500/10 hover:border-red-500/30 transition-all flex items-center gap-2"
+            >
+              <Trash2 size={16} />
+              Borrar
+            </button>
+            <div className="flex-1"></div>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={guardando}
+              className="px-4 py-2.5 rounded-xl bg-[#111] border border-[#2a2a2a] text-sm text-[#676B67] hover:text-white hover:border-[#3a3a3a] transition-all"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={guardando}
+              className="px-4 py-2.5 rounded-xl bg-white text-black text-sm font-bold hover:bg-[#e5e5e5] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              {guardando ? "Guardando…" : "Guardar"}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 // ── Stock Card ────────────────────────────────────────────────────────────────
 
 const StockCard = memo(function StockCard({
   producto,
-  onModificar,
+  onEdit,
   onToggle,
 }: {
   producto: Producto;
-  onModificar: (id: string, delta: number) => void;
+  onEdit: (producto: Producto) => void;
   onToggle: (id: string) => void;
 }) {
   const stockMax = 100;
@@ -259,15 +388,6 @@ const StockCard = memo(function StockCard({
 
       {/* Stock controls */}
       <div className="flex items-center gap-3">
-        <button
-          onClick={() => onModificar(producto.id, -1)}
-          disabled={(producto.stock ?? 0) <= 0}
-          aria-label={`Reducir stock de ${producto.nombre}`}
-          className="w-7 h-7 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white hover:bg-[#2a2a2a] disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
-        >
-          <Minus size={12} />
-        </button>
-
         <div className="flex-1">
           <div className="flex justify-between items-center mb-1">
             <span
@@ -300,11 +420,11 @@ const StockCard = memo(function StockCard({
         </div>
 
         <button
-          onClick={() => onModificar(producto.id, 1)}
-          aria-label={`Aumentar stock de ${producto.nombre}`}
+          onClick={() => onEdit(producto)}
+          aria-label={`Editar stock de ${producto.nombre}`}
           className="w-7 h-7 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white hover:bg-[#2a2a2a] flex items-center justify-center transition-colors"
         >
-          <Plus size={12} />
+          <Pencil size={12} />
         </button>
       </div>
     </motion.div>
@@ -318,7 +438,6 @@ export default function StockPage() {
   const categorias = useStockStore((s) => s.categorias);
   const categoriaActiva = useStockStore((s) => s.categoriaActiva);
   const setCategoriaActiva = useStockStore((s) => s.setCategoriaActiva);
-  const modificarStock = useStockStore((s) => s.modificarStock);
   const toggleDisponibilidad = useStockStore((s) => s.toggleDisponibilidad);
   const getProductosPorCategoria = useStockStore(
     (s) => s.getProductosPorCategoria
@@ -332,6 +451,7 @@ export default function StockPage() {
   const error = useStockStore((s) => s.error);
 
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [productoEditando, setProductoEditando] = useState<Producto | null>(null);
 
   useEffect(() => {
     // Cargar categorias primero, y luego productos
@@ -361,6 +481,12 @@ export default function StockPage() {
           <ModalNuevoProducto
             onClose={() => setModalAbierto(false)}
             categoriaInicial={categoriaActiva}
+          />
+        )}
+        {productoEditando && (
+          <ModalEditarProducto
+            producto={productoEditando}
+            onClose={() => setProductoEditando(null)}
           />
         )}
       </AnimatePresence>
@@ -428,7 +554,7 @@ export default function StockPage() {
                     <StockCard
                       key={p.id}
                       producto={p}
-                      onModificar={modificarStock}
+                      onEdit={setProductoEditando}
                       onToggle={toggleDisponibilidad}
                     />
                   ))

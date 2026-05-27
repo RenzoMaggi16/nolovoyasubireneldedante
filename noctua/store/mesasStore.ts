@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import type { Mesa, EstadoMesa } from "@/types/mesa";
-import { obtenerMesas, crearMesa } from "@/hooks/lib/api/mesasApi";
+import { obtenerMesas, crearMesa, actualizarMesa, eliminarMesa, actualizarEstadoMesa } from "@/hooks/lib/api/mesasApi";
 interface MesasState {
   mesas: Mesa[];
   mesaSeleccionada: string | null;
@@ -22,7 +22,7 @@ interface MesasState {
   toggleSeleccionMesa: (id: string) => void;
   limpiarSeleccion: () => void;
 
-  setEstadoMesa: (id: string, estado: EstadoMesa) => void;
+  setEstadoMesa: (id: string, estado: EstadoMesa) => Promise<void>;
   setPersonasMesa: (id: string, personas: number) => void;
 
   abrirMesa: (id: string, personas: number) => void;
@@ -33,7 +33,9 @@ interface MesasState {
   unirMesas: (ids: string[]) => void;
   dividirMesas: (id: string) => void;
 
-  asignarPedido: (mesaId: string, pedidoId: string) => void;
+  asignarPedido: (mesaId: string, pedidoId: string) => Promise<void>;
+  editarMesa: (id: string, data: { numero?: number; capacidad?: number; ubicacion?: string }) => Promise<void>;
+  borrarMesa: (id: string) => Promise<void>;
 }
 
 export const useMesasStore = create<MesasState>((set) => ({
@@ -110,12 +112,24 @@ export const useMesasStore = create<MesasState>((set) => ({
       mesasSeleccionadas: [],
     }),
 
-  setEstadoMesa: (id, estado) =>
-    set((state) => ({
-      mesas: state.mesas.map((m) =>
-        m.id === id ? { ...m, estado } : m
-      ),
-    })),
+  setEstadoMesa: async (id, estado) => {
+    try {
+      await actualizarEstadoMesa(id, estado);
+      set((state) => ({
+        mesas: state.mesas.map((m) =>
+          m.id === id ? { ...m, estado } : m
+        ),
+      }));
+    } catch (e) {
+      console.error("Error actualizando estado de mesa en DB:", e);
+      // Actualización optimista de todos modos
+      set((state) => ({
+        mesas: state.mesas.map((m) =>
+          m.id === id ? { ...m, estado } : m
+        ),
+      }));
+    }
+  },
 
   setPersonasMesa: (id, personas) =>
     set((state) => ({
@@ -185,12 +199,42 @@ export const useMesasStore = create<MesasState>((set) => ({
       };
     }),
 
-  asignarPedido: (mesaId, pedidoId) =>
-    set((state) => ({
-      mesas: state.mesas.map((m) =>
-        m.id === mesaId
-          ? { ...m, pedidoId, estado: "ocupada" }
-          : m
-      ),
-    })),
+  asignarPedido: async (mesaId, pedidoId) => {
+    try {
+      await actualizarEstadoMesa(mesaId, "esperando_pedido");
+      set((state) => ({
+        mesas: state.mesas.map((m) =>
+          m.id === mesaId
+            ? { ...m, pedidoId, estado: "esperando_pedido" }
+            : m
+        ),
+      }));
+    } catch (e) {
+      console.error("Error al asignar pedido:", e);
+    }
+  },
+
+  editarMesa: async (id, data) => {
+    try {
+      set({ isLoading: true, error: null });
+      await actualizarMesa(id, data);
+      const mesas = await obtenerMesas();
+      set({ mesas, isLoading: false });
+    } catch (error) {
+      set({ isLoading: false, error: "No se pudo editar la mesa" });
+    }
+  },
+
+  borrarMesa: async (id) => {
+    try {
+      set({ isLoading: true, error: null });
+      await eliminarMesa(id);
+      set((state) => ({
+        mesas: state.mesas.filter(m => m.id !== id),
+        isLoading: false,
+      }));
+    } catch (error) {
+      set({ isLoading: false, error: "No se pudo borrar la mesa" });
+    }
+  },
 }));

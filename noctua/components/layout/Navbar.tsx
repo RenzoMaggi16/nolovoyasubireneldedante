@@ -5,12 +5,13 @@ import { usePathname } from 'next/navigation';
 import { Wifi } from 'lucide-react';
 
 const PAGE_LABELS: Record<string, string> = {
-  '/dashboard/mesas': 'Mesas',
-  '/dashboard/pedido': 'Pedidos',
-  '/dashboard/cocina': 'Cocina — KDS',
-  '/dashboard/historial': 'Historial de Pedidos',
-  '/dashboard/stock': 'Stock',
-  '/dashboard/reservas': 'Reservas',
+  '/dashboard/mesas':          'Mesas',
+  '/dashboard/pedido':         'Pedidos',
+  '/dashboard/cocina':         'Cocina — KDS',
+  '/dashboard/historial':      'Historial de Pedidos',
+  '/dashboard/stock':          'Stock',
+  '/dashboard/reservas':       'Reservas',
+  '/dashboard/administracion': 'Administración',
 };
 
 export function Navbar() {
@@ -33,7 +34,11 @@ export function Navbar() {
     return () => clearInterval(id);
   }, []);
 
-  const pageLabel = PAGE_LABELS[pathname] ?? 'NOCTUA';
+  // Buscar label por ruta exacta o prefix
+  const pageLabel =
+    PAGE_LABELS[pathname] ??
+    Object.entries(PAGE_LABELS).find(([ruta]) => pathname.startsWith(ruta))?.[1] ??
+    'NOCTUA';
 
   return (
     <header className="h-14 bg-[#080808] border-b border-[#1a1a1a] flex items-center justify-between px-6 sticky top-0 z-30">

@@ -12,11 +12,11 @@ import { COLORES_ESTADO_MESA, TEXTO_ESTADO_MESA } from "@/hooks/lib/constants";
 import type { Mesa, EstadoMesa } from "@/types/mesa";
 
 const ZONAS_LAYOUT = [
-  "TERRAZA EXTERIOR",
-  "SALÓN PRINCIPAL",
-  "BAR",
-  "ZONA SOFÁS",
-  "ZONA COCINA",
+  { id: "terraza", label: "TERRAZA EXTERIOR" },
+  { id: "salon", label: "SALÓN PRINCIPAL" },
+  { id: "bar", label: "BAR" },
+  { id: "sofas", label: "ZONA SOFÁS" },
+  { id: "cocina", label: "ZONA COCINA" },
 ];
 
 const ESTADOS_LEYENDA: EstadoMesa[] = [
@@ -45,10 +45,17 @@ export default function MesasPage() {
 
   const [numeroMesa, setNumeroMesa] = useState("");
   const [capacidadMesa, setCapacidadMesa] = useState("");
-  const [ubicacionMesa, setUbicacionMesa] = useState("SALÓN PRINCIPAL");
+  const [ubicacionMesa, setUbicacionMesa] = useState("salon");
 
   useEffect(() => {
     cargarMesas();
+
+    const handleFocus = () => {
+      cargarMesas();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, [cargarMesas]);
 
   const handleCrearMesa = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -75,7 +82,7 @@ export default function MesasPage() {
 
     setNumeroMesa("");
     setCapacidadMesa("");
-    setUbicacionMesa("SALÓN PRINCIPAL");
+    setUbicacionMesa("salon");
   };
 
   const handleSingleClick = useCallback(
@@ -155,11 +162,11 @@ export default function MesasPage() {
               onChange={(e) => setUbicacionMesa(e.target.value)}
               className="bg-black border border-[#2a2a2a] rounded-md px-3 py-2 text-white outline-none focus:border-white"
             >
-              <option value="SALÓN PRINCIPAL">SALÓN PRINCIPAL</option>
-              <option value="TERRAZA EXTERIOR">TERRAZA EXTERIOR</option>
-              <option value="BAR">BAR</option>
-              <option value="ZONA SOFÁS">ZONA SOFÁS</option>
-              <option value="ZONA COCINA">ZONA COCINA</option>
+              <option value="salon">SALÓN PRINCIPAL</option>
+              <option value="terraza">TERRAZA EXTERIOR</option>
+              <option value="bar">BAR</option>
+              <option value="sofas">ZONA SOFÁS</option>
+              <option value="cocina">ZONA COCINA</option>
             </select>
           </div>
 
@@ -222,19 +229,19 @@ export default function MesasPage() {
 
       {/* Zones grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {ZONAS_LAYOUT.map((zona) => {
-          const mesasZona = getMesasPorZona(zona);
+        {ZONAS_LAYOUT.map((zonaObj) => {
+          const mesasZona = getMesasPorZona(zonaObj.id);
 
           if (mesasZona.length === 0) return null;
 
           return (
             <div
-              key={zona}
+              key={zonaObj.id}
               className="bg-[#080808] border border-[#1a1a1a] rounded-xl p-5"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-display text-lg tracking-widest text-[#BCB9B9] uppercase">
-                  {zona}
+                  {zonaObj.label}
                 </h3>
 
                 <span className="text-xs text-[#676B67]">

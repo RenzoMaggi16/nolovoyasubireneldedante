@@ -3,20 +3,25 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, Lock, User } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui/Button';
 
 export default function LoginPage() {
   const router = useRouter();
   const { login, isAuthenticated, isLoading, error, clearError } = useAuthStore();
-  const [usuario, setUsuario] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [shakeKey, setShakeKey] = useState(0);
 
+  // Si ya está autenticado, redirigir
   useEffect(() => {
-    if (isAuthenticated) router.replace('/dashboard/mesas');
+    if (isAuthenticated) {
+      const rol = useAuthStore.getState().rol;
+      const { HOME_POR_ROL } = require('@/config/roles');
+      router.replace(rol ? HOME_POR_ROL[rol] : '/dashboard/mesas');
+    }
   }, [isAuthenticated, router]);
 
   useEffect(() => {
@@ -26,9 +31,9 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
-    const success = await login(usuario, password);
-    if (success) {
-      router.push('/dashboard/mesas');
+    const { ok, redirectTo } = await login(username, password);
+    if (ok && redirectTo) {
+      router.push(redirectTo);
     }
   };
 
@@ -82,20 +87,20 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} noValidate className="space-y-5">
             {/* Usuario */}
             <div className="space-y-1.5">
-              <label htmlFor="login-usuario" className="text-xs font-semibold text-[#BCB9B9] tracking-widest uppercase">
+              <label htmlFor="login-username" className="text-xs font-semibold text-[#BCB9B9] tracking-widest uppercase">
                 Usuario
               </label>
               <div className="relative">
-                <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#676B67]" aria-hidden="true" />
+                <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#676B67]" aria-hidden="true" />
                 <input
-                  id="login-usuario"
+                  id="login-username"
                   type="text"
                   autoComplete="username"
-                  value={usuario}
-                  onChange={(e) => { setUsuario(e.target.value); clearError(); }}
+                  value={username}
+                  onChange={(e) => { setUsername(e.target.value); clearError(); }}
                   placeholder="admin"
                   className="w-full bg-[#111] border border-[#2a2a2a] rounded-lg pl-9 pr-4 py-3 text-sm text-white placeholder-[#3a3a3a] focus:outline-none focus:border-[#676B67] transition-colors"
-                  aria-label="Nombre de usuario"
+                  aria-label="Usuario"
                 />
               </div>
             </div>
@@ -113,7 +118,7 @@ export default function LoginPage() {
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); clearError(); }}
-                  placeholder="••••"
+                  placeholder="••••••••"
                   className="w-full bg-[#111] border border-[#2a2a2a] rounded-lg pl-9 pr-10 py-3 text-sm text-white placeholder-[#3a3a3a] focus:outline-none focus:border-[#676B67] transition-colors"
                   aria-label="Contraseña"
                 />
@@ -148,18 +153,13 @@ export default function LoginPage() {
             <Button
               type="submit"
               loading={isLoading}
-              disabled={!usuario || !password}
+              disabled={!username || !password}
               className="w-full py-3 text-sm font-bold tracking-widest uppercase"
               aria-label="Iniciar sesión"
             >
               {isLoading ? 'Verificando...' : 'Ingresar'}
             </Button>
           </form>
-
-          {/* Hint */}
-          <p className="text-center text-[#2a2a2a] text-xs mt-6 font-mono">
-            admin / 1234
-          </p>
         </motion.div>
       </div>
     </main>

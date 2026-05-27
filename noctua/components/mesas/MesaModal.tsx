@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Users, Clock, AlertTriangle, Link2, Scissors, X } from 'lucide-react';
+import { Users, Clock, AlertTriangle, Link2, Scissors, X, Edit2, Trash2 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -25,15 +25,43 @@ const ESTADOS_ORDEN: EstadoMesa[] = [
 
 export function MesaModal({ mesa, isOpen, onClose }: MesaModalProps) {
   const router = useRouter();
-  const { setEstadoMesa, setPersonasMesa, cerrarMesa, dividirMesas } = useMesasStore();
+  const { setEstadoMesa, setPersonasMesa, cerrarMesa, dividirMesas, editarMesa, borrarMesa } = useMesasStore();
   const getPedidoPorMesa = usePedidosStore((s) => s.getPedidoPorMesa);
   const iniciarPedido = usePedidosStore((s) => s.iniciarPedido);
   const [elapsed, setElapsed] = useState('');
   const [personas, setPersonas] = useState(mesa?.personas ?? 2);
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [editNumero, setEditNumero] = useState(mesa?.numero ?? 0);
+  const [editCapacidad, setEditCapacidad] = useState(mesa?.capacidad ?? 4);
+  const [editZona, setEditZona] = useState(mesa?.zona ?? 'salon');
+
   useEffect(() => {
-    setPersonas(mesa?.personas ?? 2);
+    if (mesa) {
+      setPersonas(mesa.personas ?? 2);
+      setEditNumero(mesa.numero);
+      setEditCapacidad(mesa.capacidad);
+      setEditZona(mesa.zona);
+    }
   }, [mesa]);
+
+  const handleGuardarEdicion = async () => {
+    if (mesa) {
+      await editarMesa(mesa.id, {
+        numero: editNumero,
+        capacidad: editCapacidad,
+        ubicacion: editZona,
+      });
+      setIsEditing(false);
+    }
+  };
+
+  const handleBorrarMesa = async () => {
+    if (mesa && confirm("¿Estás seguro de que deseas eliminar esta mesa permanentemente?")) {
+      await borrarMesa(mesa.id);
+      onClose();
+    }
+  };
 
   useEffect(() => {
     if (!mesa?.timerInicio) { setElapsed(''); return; }
@@ -68,10 +96,58 @@ export function MesaModal({ mesa, isOpen, onClose }: MesaModalProps) {
     onClose();
   };
 
+  const ZONAS_LABELS: Record<string, string> = {
+    terraza: "TERRAZA EXTERIOR",
+    salon: "SALÓN PRINCIPAL",
+    bar: "BAR",
+    sofas: "ZONA SOFÁS",
+    cocina: "ZONA COCINA",
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg"
-      title={`Mesa ${mesa.numero} — ${mesa.zona}`}
+      title={`Mesa ${mesa.numero} — ${ZONAS_LABELS[mesa.zona] || mesa.zona}`}
     >
+      {isEditing ? (
+        <div className="space-y-4">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-[#676B67] uppercase font-semibold">Número</label>
+            <input
+              type="number"
+              value={editNumero}
+              onChange={(e) => setEditNumero(Number(e.target.value))}
+              className="bg-black border border-[#2a2a2a] rounded-md px-3 py-2 text-white outline-none focus:border-white"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-[#676B67] uppercase font-semibold">Capacidad</label>
+            <input
+              type="number"
+              value={editCapacidad}
+              onChange={(e) => setEditCapacidad(Number(e.target.value))}
+              className="bg-black border border-[#2a2a2a] rounded-md px-3 py-2 text-white outline-none focus:border-white"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-[#676B67] uppercase font-semibold">Ubicación</label>
+            <select
+              value={editZona}
+              onChange={(e) => setEditZona(e.target.value)}
+              className="bg-black border border-[#2a2a2a] rounded-md px-3 py-2 text-white outline-none focus:border-white"
+            >
+              <option value="salon">SALÓN PRINCIPAL</option>
+              <option value="terraza">TERRAZA EXTERIOR</option>
+              <option value="bar">BAR</option>
+              <option value="sofas">ZONA SOFÁS</option>
+              <option value="cocina">ZONA COCINA</option>
+            </select>
+          </div>
+          <div className="flex gap-2 justify-end mt-4">
+            <Button variant="ghost" onClick={() => setIsEditing(false)}>Cancelar</Button>
+            <Button variant="primary" onClick={handleGuardarEdicion}>Guardar Cambios</Button>
+          </div>
+        </div>
+      ) : (
       <div className="space-y-5">
         {/* Estado badges */}
         <div>
@@ -175,8 +251,27 @@ export function MesaModal({ mesa, isOpen, onClose }: MesaModalProps) {
           >
             Cerrar mesa
           </Button>
+          <div className="ml-auto flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsEditing(true)}
+              aria-label="Editar mesa"
+            >
+              <Edit2 size={14} />
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={handleBorrarMesa}
+              aria-label="Eliminar mesa permanentemente"
+            >
+              <Trash2 size={14} />
+            </Button>
+          </div>
         </div>
       </div>
+      )}
     </Modal>
   );
 }

@@ -1,5 +1,11 @@
 'use client';
 
+/**
+ * components/layout/Sidebar.tsx
+ * Sidebar role-aware: solo muestra los links a los que tiene acceso el rol actual.
+ * Los links no permitidos NO se renderizan (no hidden, completamente ausentes).
+ */
+
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,31 +19,43 @@ import {
   Menu,
   X,
   History,
+  ShieldCheck,
+  LucideIcon,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { cn } from '@/hooks/lib/utils';
+import { SECCIONES_POR_ROL } from '@/config/roles';
+import type { Seccion } from '@/config/roles';
 
-const NAV_ITEMS = [
-  { href: '/dashboard/mesas', icon: UtensilsCrossed, label: 'Mesas' },
-  { href: '/dashboard/pedido', icon: ClipboardList, label: 'Pedidos' },
-  { href: '/dashboard/cocina', icon: ChefHat, label: 'Cocina' },
-  { href: '/dashboard/historial', icon: History, label: 'Historial' },
-  { href: '/dashboard/stock', icon: Package, label: 'Stock' },
-  { href: '/dashboard/reservas', icon: CalendarDays, label: 'Reservas' },
-] as const;
+// Definición completa de todos los items de nav posibles
+const TODOS_NAV_ITEMS: Array<{ seccion: Seccion; href: string; icon: LucideIcon; label: string }> = [
+  { seccion: 'mesas',          href: '/dashboard/mesas',          icon: UtensilsCrossed, label: 'Mesas' },
+  { seccion: 'pedidos',        href: '/dashboard/pedido',         icon: ClipboardList,   label: 'Pedidos' },
+  { seccion: 'cocina',         href: '/dashboard/cocina',         icon: ChefHat,         label: 'Cocina' },
+  { seccion: 'historial',      href: '/dashboard/historial',      icon: History,         label: 'Historial' },
+  { seccion: 'stock',          href: '/dashboard/stock',          icon: Package,         label: 'Stock' },
+  { seccion: 'reservas',       href: '/dashboard/reservas',       icon: CalendarDays,    label: 'Reservas' },
+  { seccion: 'administracion', href: '/dashboard/administracion', icon: ShieldCheck,     label: 'Administración' },
+];
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const logout = useAuthStore((s) => s.logout);
   const usuario = useAuthStore((s) => s.usuario);
+  const rol = useAuthStore((s) => s.rol);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     router.push('/login');
   };
+
+  // Filtrar solo los items accesibles para el rol actual
+  const navItems = rol
+    ? TODOS_NAV_ITEMS.filter((item) => SECCIONES_POR_ROL[rol]?.includes(item.seccion))
+    : [];
 
   return (
     <>
@@ -63,7 +81,7 @@ export function Sidebar() {
         )}
       </AnimatePresence>
 
-      {/* Sidebar — desktop always visible, mobile slide-in */}
+      {/* Sidebar */}
       <motion.aside
         initial={false}
         animate={
@@ -86,13 +104,13 @@ export function Sidebar() {
           <p className="text-[#676B67] text-xs mt-1 tracking-widest uppercase">Panel de Gestión</p>
         </div>
 
-        {/* Nav */}
+        {/* Nav — solo links permitidos para el rol */}
         <nav className="flex-1 px-3 py-6 space-y-1" role="navigation" aria-label="Navegación principal">
-          {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
+          {navItems.map(({ href, icon: Icon, label, seccion }) => {
             const isActive = pathname.startsWith(href);
             return (
               <Link
-                key={href}
+                key={seccion}
                 href={href}
                 onClick={() => setMobileOpen(false)}
                 aria-current={isActive ? 'page' : undefined}
@@ -122,11 +140,11 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* User + Logout */}
+        {/* Usuario + Logout */}
         <div className="px-4 py-5 border-t border-[#1a1a1a]">
           {usuario && (
             <div className="mb-3 px-1">
-              <p className="text-white text-sm font-semibold">{usuario.nombre}</p>
+              <p className="text-white text-sm font-semibold truncate">{usuario.nombre}</p>
               <p className="text-[#676B67] text-xs capitalize">{usuario.rol}</p>
             </div>
           )}

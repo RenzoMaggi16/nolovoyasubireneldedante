@@ -1,10 +1,11 @@
 "use client";
 
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import type { Pedido, ItemPedido, EstadoCocina } from "@/types/pedido";
 import { generateId } from "@/hooks/lib/utils";
-import { crearPedido, obtenerPedidos, actualizarEstadoPedido } from "@/hooks/lib/api/pedidosApi";
 import { useMesasStore } from "@/store/mesasStore";
+import { useStockStore } from "@/store/stockStore";
 
 interface PedidosState {
   pedidos: Pedido[];
@@ -26,23 +27,21 @@ interface PedidosState {
 
   // Actualizar estado (desde cocina)
   actualizarEstadoCocina: (pedidoId: string, estado: EstadoCocina) => Promise<void>;
+  eliminarPedido: (pedidoId: string) => void;
 
   // Getters
   getPedidoPorMesa: (mesaId: string) => Pedido | undefined;
 }
 
-export const usePedidosStore = create<PedidosState>((set, get) => ({
+export const usePedidosStore = create<PedidosState>()(
+  persist(
+    (set, get) => ({
   pedidos: [],
   pedidoActual: null,
   mesaActivaId: null,
 
   cargarPedidos: async () => {
-    try {
-      const pedidos = await obtenerPedidos();
-      set({ pedidos });
-    } catch (error) {
-      console.error("Error cargando pedidos:", error);
-    }
+    // Los pedidos ahora se cargan desde localStorage gracias a zustand/persist
   },
 
   iniciarPedido: (mesaId, numeroMesa, zona, personas) => {
@@ -119,15 +118,11 @@ export const usePedidosStore = create<PedidosState>((set, get) => ({
     const { pedidoActual, pedidos } = get();
     if (!pedidoActual || pedidoActual.items.length === 0) return null;
 
-    // Si el pedido ya tiene un UUID de Supabase (es decir, ya existía en la DB)
-    // idealmente aquí haríamos una actualización en la base de datos (UPDATE).
-    // Si no lo tiene (es un generateId() temporal), creamos uno nuevo.
-    const isNew = pedidoActual.id.length < 20; 
-
-    let pedidoFinal: Pedido;
-
-    if (isNew) {
-      const res = await crearPedido({
+    // Use a try catch to call Supabase via api
+    try {
+      const { crearPedido } = await import("@/hooks/lib/api/pedidosApi");
+      
+      const result = await crearPedido({
         mesaId: pedidoActual.mesaId,
         numeroMesa: pedidoActual.numeroMesa,
         zona: pedidoActual.zona,
@@ -142,41 +137,50 @@ export const usePedidosStore = create<PedidosState>((set, get) => ({
           notas: i.notas
         }))
       });
-      pedidoFinal = res.pedido;
-    } else {
-      // (Si hubiera una API de actualización de items, iría aquí)
-      // Por ahora para este alcance, solo le devolvemos su estado a pendiente si se edita.
-      await actualizarEstadoPedido(pedidoActual.id, 'pendiente');
-      pedidoFinal = { ...pedidoActual, estado: 'pendiente', actualizadoEn: new Date() };
+
+      const pedidoFinal = result.pedido;
+
+      const existIdx = pedidos.findIndex((p) => p.id === pedidoFinal.id);
+      const newPedidos = existIdx >= 0
+        ? pedidos.map((p) => (p.id === pedidoFinal.id ? pedidoFinal : p))
+        : [...pedidos, pedidoFinal];
+
+      set({ pedidos: newPedidos, pedidoActual: null });
+
+      // Sincronización con el store de mesas
+      useMesasStore.getState().asignarPedido(pedidoFinal.mesaId, pedidoFinal.id);
+      useMesasStore.getState().setEstadoMesa(pedidoFinal.mesaId, 'esperando_pedido');
+
+      // Descontar stock de los productos
+      pedidoFinal.items.forEach(item => {
+        useStockStore.getState().modificarStock(item.productoId, -item.cantidad);
+      });
+
+      return pedidoFinal;
+    } catch (error) {
+      console.error("Error al enviar pedido a la base de datos:", error);
+      // Fallback local en caso de error (o mostrar error)
+      alert("Hubo un error al enviar el pedido a cocina. Inténtalo de nuevo.");
+      return null;
     }
-
-    const existIdx = pedidos.findIndex((p) => p.id === pedidoFinal.id);
-    const newPedidos = existIdx >= 0
-      ? pedidos.map((p) => (p.id === pedidoFinal.id ? pedidoFinal : p))
-      : [...pedidos, pedidoFinal];
-
-    set({ pedidos: newPedidos, pedidoActual: null });
-
-    // Sincronización con el store de mesas
-    useMesasStore.getState().asignarPedido(pedidoFinal.mesaId, pedidoFinal.id);
-    useMesasStore.getState().setEstadoMesa(pedidoFinal.mesaId, 'esperando_pedido');
-
-    return pedidoFinal;
   },
 
   actualizarEstadoCocina: async (pedidoId, estado) => {
-    try {
-      await actualizarEstadoPedido(pedidoId, estado);
-      set((state) => ({
-        pedidos: state.pedidos.map((p) =>
-          p.id === pedidoId ? { ...p, estado, actualizadoEn: new Date() } : p
-        ),
-      }));
-    } catch (e) {
-      console.error("Error al actualizar en BD:", e);
-    }
+    set((state) => ({
+      pedidos: state.pedidos.map((p) =>
+        p.id === pedidoId ? { ...p, estado, actualizadoEn: new Date() } : p
+      ),
+    }));
   },
+
+  eliminarPedido: (pedidoId) =>
+    set((state) => ({
+      pedidos: state.pedidos.filter((p) => p.id !== pedidoId),
+    })),
 
   getPedidoPorMesa: (mesaId) =>
     get().pedidos.find((p) => p.mesaId === mesaId && p.estado !== 'entregado'),
-}));
+    }),
+    { name: "pedidos-storage" }
+  )
+);

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { formatARS } from '@/hooks/lib/utils';
-import { obtenerPedidosPorFecha } from '@/hooks/lib/api/pedidosApi';
+import { usePedidosStore } from '@/store/pedidosStore';
 import type { Pedido } from '@/types/pedido';
 import { TEXTO_ESTADO_COCINA } from '@/hooks/lib/constants';
 import { cn } from '@/hooks/lib/utils';
@@ -17,13 +17,22 @@ export default function HistorialPage() {
   const [fechaInicio, setFechaInicio] = useState(hoy);
   const [fechaFin, setFechaFin] = useState(hoy);
 
-  const cargarHistorial = async () => {
+  const todosLosPedidos = usePedidosStore((state) => state.pedidos);
+
+  const cargarHistorial = () => {
     setLoading(true);
     try {
       // Ajuste de rango para abarcar el día completo (UTC)
-      const inicioStr = new Date(`${fechaInicio}T00:00:00.000Z`).toISOString();
-      const finStr = new Date(`${fechaFin}T23:59:59.999Z`).toISOString();
-      const data = await obtenerPedidosPorFecha(inicioStr, finStr);
+      const inicio = new Date(`${fechaInicio}T00:00:00.000Z`).getTime();
+      const fin = new Date(`${fechaFin}T23:59:59.999Z`).getTime();
+      
+      const data = todosLosPedidos.filter((p) => {
+        const fechaPedido = new Date(p.creadoEn).getTime();
+        return fechaPedido >= inicio && fechaPedido <= fin;
+      });
+      
+      data.sort((a, b) => new Date(b.creadoEn).getTime() - new Date(a.creadoEn).getTime());
+      
       setPedidos(data);
     } catch (e) {
       console.error(e);
@@ -34,7 +43,7 @@ export default function HistorialPage() {
 
   useEffect(() => {
     cargarHistorial();
-  }, []);
+  }, [todosLosPedidos]);
 
   const totalVendido = pedidos.reduce((acc, p) => acc + p.total, 0);
 

@@ -2,7 +2,9 @@
 
 import { create } from "zustand";
 import type { Producto, Categoria } from "@/types/producto";
-import { obtenerProductos, crearProducto, obtenerCategorias } from "@/hooks/lib/api/productosApi";
+import { obtenerProductos, crearProducto, obtenerCategorias, actualizarStockBD } from "@/hooks/lib/api/productosApi";
+
+const debounceTimers: Record<string, NodeJS.Timeout> = {};
 
 interface StockState {
   categorias: Categoria[];
@@ -26,6 +28,8 @@ interface StockState {
   getProductosPorCategoria: (catId: string | null) => Producto[];
   getTotalValorizado: () => number;
   getTotalPorCategoria: (catId: string | null) => number;
+  actualizarStockProducto: (id: string, nuevoStock: number) => Promise<void>;
+  eliminarProductoStore: (id: string) => Promise<void>;
 }
 
 export const useStockStore = create<StockState>((set, get) => ({
@@ -90,13 +94,27 @@ export const useStockStore = create<StockState>((set, get) => ({
   setCategoriaActiva: (catId) => set({ categoriaActiva: catId }),
 
   modificarStock: (id, delta) =>
-    set((state) => ({
-      productos: state.productos.map((p) =>
-        p.id === id
-          ? { ...p, stock: Math.max(0, (p.stock ?? 0) + delta) }
-          : p
-      ),
-    })),
+    set((state) => {
+      const p = state.productos.find((x) => x.id === id);
+      if (!p) return {};
+      const newStock = Math.max(0, (p.stock ?? 0) + delta);
+
+      if (debounceTimers[id]) {
+        clearTimeout(debounceTimers[id]);
+      }
+      debounceTimers[id] = setTimeout(() => {
+        actualizarStockBD(id, newStock).catch((err) =>
+          console.error("Error debouncing stock update:", err)
+        );
+        delete debounceTimers[id];
+      }, 2000);
+
+      return {
+        productos: state.productos.map((prod) =>
+          prod.id === id ? { ...prod, stock: newStock } : prod
+        ),
+      };
+    }),
 
   toggleDisponibilidad: (id) =>
     set((state) => ({
@@ -113,10 +131,38 @@ export const useStockStore = create<StockState>((set, get) => ({
   getTotalValorizado: () =>
     get().productos.reduce((acc, p) => acc + p.precio * (p.stock ?? 0), 0),
 
-  getTotalPorCategoria: (catId) => {
+  getTotalPorCategoria: (catId: string | null) => {
     if (!catId) return 0;
     return get()
       .productos.filter((p) => p.categoria_id === catId)
       .reduce((acc, p) => acc + p.precio * (p.stock ?? 0), 0);
+  },
+
+  actualizarStockProducto: async (id, nuevoStock) => {
+    try {
+      await actualizarStockBD(id, nuevoStock);
+      set((state) => ({
+        productos: state.productos.map((prod) =>
+          prod.id === id ? { ...prod, stock: nuevoStock } : prod
+        ),
+      }));
+    } catch (error) {
+      console.error("Error al actualizar stock de producto:", error);
+      throw error;
+    }
+  },
+
+  eliminarProductoStore: async (id) => {
+    try {
+      // Necesitamos importar eliminarProducto de productosApi.ts
+      const { eliminarProducto } = await import("@/hooks/lib/api/productosApi");
+      await eliminarProducto(id);
+      set((state) => ({
+        productos: state.productos.filter((prod) => prod.id !== id),
+      }));
+    } catch (error) {
+      console.error("Error al eliminar producto:", error);
+      throw error;
+    }
   }
 }));
