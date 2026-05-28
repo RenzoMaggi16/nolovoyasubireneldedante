@@ -24,6 +24,9 @@ export const COLORES_ESTADO_COCINA: Record<EstadoCocina, string> = {
   preparando: "bg-red-500",
   listo: "bg-yellow-400",
   entregado: "bg-green-500",
+  lista_para_cobrar: "bg-blue-500",
+  cerrada: "bg-purple-500",
+  cancelado: "bg-red-900",
 };
 
 export const COLORES_BORDE_COCINA: Record<EstadoCocina, string> = {
@@ -31,6 +34,9 @@ export const COLORES_BORDE_COCINA: Record<EstadoCocina, string> = {
   preparando: "border-red-500",
   listo: "border-yellow-400",
   entregado: "border-green-500",
+  lista_para_cobrar: "border-blue-500",
+  cerrada: "border-purple-500",
+  cancelado: "border-red-900",
 };
 
 export const TEXTO_ESTADO_COCINA: Record<EstadoCocina, string> = {
@@ -38,7 +44,13 @@ export const TEXTO_ESTADO_COCINA: Record<EstadoCocina, string> = {
   preparando: "Preparando",
   listo: "Listo",
   entregado: "Entregado",
+  lista_para_cobrar: "Lista para cobrar",
+  cerrada: "Cerrada",
+  cancelado: "Cancelado",
 };
+
+/** Tasa de IVA para todos los cálculos de facturación */
+export const IVA_RATE = 0.21;
 
 
 

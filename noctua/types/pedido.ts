@@ -1,4 +1,4 @@
-export type EstadoCocina = 'pendiente' | 'preparando' | 'listo' | 'entregado';
+export type EstadoCocina = 'pendiente' | 'preparando' | 'listo' | 'entregado' | 'lista_para_cobrar' | 'cerrada' | 'cancelado';
 
 export interface ItemPedido {
   productoId: string;

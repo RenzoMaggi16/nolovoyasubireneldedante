@@ -12,6 +12,7 @@ const PAGE_LABELS: Record<string, string> = {
   '/dashboard/stock':          'Stock',
   '/dashboard/reservas':       'Reservas',
   '/dashboard/administracion': 'Administración',
+  '/dashboard/cajero':         'Caja',
 };
 
 export function Navbar() {
