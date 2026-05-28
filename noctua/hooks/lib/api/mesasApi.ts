@@ -113,7 +113,14 @@ export async function eliminarMesa(id: string) {
 
 export async function actualizarEstadoMesa(id: string, estado: string) {
   const queryId = isNaN(Number(id)) ? id : Number(id);
-  const { error } = await supabase.from('mesas').update({ estado }).eq('id', queryId);
+  
+  // Mapeamos estados que no existen en el enum de Supabase
+  let dbEstado = estado;
+  if (estado === 'pedido_listo' || estado === 'esperando_pago') {
+    dbEstado = 'ocupada';
+  }
+
+  const { error } = await supabase.from('mesas').update({ estado: dbEstado }).eq('id', queryId);
 
   if (error) {
     console.error("Error al actualizar estado de la mesa en Supabase:", error);

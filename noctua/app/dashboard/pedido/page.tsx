@@ -118,7 +118,7 @@ export default function PedidoPage() {
   const handleEnviar = async () => {
     const pedido = await enviarPedido();
     if (pedido) {
-      router.push('/dashboard/cocina');
+      // Optional: you can show a success toast here if you want
     }
   };
 

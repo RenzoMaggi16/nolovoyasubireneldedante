@@ -121,9 +121,11 @@ export const usePedidosStore = create<PedidosState>()(
     // Use a try catch to call Supabase via api
     try {
       const { crearPedido } = await import("@/hooks/lib/api/pedidosApi");
+      const { useAuthStore } = await import("@/store/authStore");
       
       const result = await crearPedido({
         mesaId: pedidoActual.mesaId,
+        usuarioId: useAuthStore.getState().usuario?.id,
         numeroMesa: pedidoActual.numeroMesa,
         zona: pedidoActual.zona,
         personas: pedidoActual.personas,

@@ -52,7 +52,7 @@ function mapDBPedido(p: DBPedido): Pedido {
 export async function obtenerPedidos(): Promise<Pedido[]> {
   const { data, error } = await supabase
     .from("pedidos")
-    .select("*, mesas(numero, zona, personas), pedido_items(*, productos(nombre))");
+    .select("*, mesas(numero, zona), pedido_items(*, productos(nombre))");
 
   if (error) {
     const errorMsg = error.message || JSON.stringify(error);
@@ -68,7 +68,7 @@ export async function obtenerPedidos(): Promise<Pedido[]> {
 export async function obtenerPedidosPorFecha(inicio: string, fin: string): Promise<Pedido[]> {
   const { data, error } = await supabase
     .from("pedidos")
-    .select("*, mesas(numero, zona, personas), pedido_items(*, productos(nombre))"); // Remove gte/lte on created_at since it doesn't exist for now
+    .select("*, mesas(numero, zona), pedido_items(*, productos(nombre))"); // Remove gte/lte on created_at since it doesn't exist for now
 
   if (error) {
     const errorMsg = error.message || JSON.stringify(error);
@@ -81,6 +81,7 @@ export async function obtenerPedidosPorFecha(inicio: string, fin: string): Promi
 
 export async function crearPedido(data: {
   mesaId: string;
+  usuarioId?: string;
   numeroMesa: number;
   zona: string;
   personas: number;
@@ -94,48 +95,23 @@ export async function crearPedido(data: {
     notas?: string;
   }[];
 }): Promise<{ success: boolean; pedido: Pedido }> {
-  // 1. Crear el pedido
-  const { data: pedidoData, error: pedidoError } = await supabase
-    .from("pedidos")
-    .insert({
-      mesa_id: data.mesaId,
-      total: data.total,
-      estado: "pendiente",
-    })
-    .select()
-    .single();
+  // Enviar a la API interna que salta las reglas de seguridad RLS
+  const res = await fetch("/api/pedidos", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
 
-  if (pedidoError) {
-    console.error("Error al crear pedido:", pedidoError);
-    throw new Error(pedidoError.message);
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    console.error("Error al crear pedido (API):", json.error);
+    throw new Error(json.error || "Error al crear el pedido");
   }
 
-  // 2. Insertar los items
-  const itemsToInsert = data.items.map((i) => ({
-    pedido_id: pedidoData.id,
-    producto_id: i.productoId,
-    cantidad: i.cantidad,
-    precio_unitario: i.precioUnitario,
-    subtotal: i.subtotal,
-  }));
-
-  const { error: itemsError } = await supabase.from("pedido_items").insert(itemsToInsert);
-
-  if (itemsError) {
-    console.error("Error al crear items del pedido:", itemsError);
-    throw new Error(itemsError.message);
-  }
-
-  // 3. Devolver el pedido completo con los items
-  const { data: fullPedido, error: fetchError } = await supabase
-    .from("pedidos")
-    .select("*, mesas(numero, zona, personas), pedido_items(*, productos(nombre))")
-    .eq("id", pedidoData.id)
-    .single();
-
-  if (fetchError) throw new Error(fetchError.message);
-
-  return { success: true, pedido: mapDBPedido(fullPedido as DBPedido) };
+  // Mapear el pedido devuelto
+  return { success: true, pedido: mapDBPedido(json.pedido as DBPedido) };
 }
 
 export async function actualizarEstadoPedido(

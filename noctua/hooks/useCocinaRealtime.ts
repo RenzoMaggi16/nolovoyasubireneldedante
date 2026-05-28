@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/hooks/lib/supabaseClient';
 import { obtenerPedidos } from '@/hooks/lib/api/pedidosApi';
-import type { Pedido } from '@/types/pedido';
+import { usePedidosStore } from '@/store/pedidosStore';
 
 export function useCocinaRealtime() {
-  const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const pedidos = usePedidosStore((state) => state.pedidos);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -15,7 +15,7 @@ export function useCocinaRealtime() {
       try {
         const data = await obtenerPedidos();
         if (mounted) {
-          setPedidos(data);
+          usePedidosStore.setState({ pedidos: data });
           setLoading(false);
         }
       } catch (err: any) {

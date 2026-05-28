@@ -17,15 +17,25 @@ export const cocinaService = {
   },
 
   cambiarEstadoLibre: async (pedidoId: string, nuevoEstado: EstadoCocina): Promise<void> => {
+    try {
+      const { actualizarEstadoPedido } = await import('@/hooks/lib/api/pedidosApi');
+      await actualizarEstadoPedido(pedidoId, nuevoEstado);
+    } catch (error) {
+      console.error("Error al actualizar estado en BD:", error);
+      return;
+    }
+
     const { pedidos, actualizarEstadoCocina } = usePedidosStore.getState();
     const pedido = pedidos.find((p) => p.id === pedidoId);
-    if (!pedido) return;
-
-    // Actualizamos BD y Estado Local
+    
+    // Actualizamos Estado Local
     await actualizarEstadoCocina(pedidoId, nuevoEstado);
 
-    // Sincronizamos con el Store de Mesas
-    const mesaEstado = COCINA_TO_MESA[nuevoEstado];
-    useMesasStore.getState().setEstadoMesa(pedido.mesaId, mesaEstado);
+    if (pedido) {
+      // Sincronizamos con el Store de Mesas
+      const mesaEstado = COCINA_TO_MESA[nuevoEstado];
+      useMesasStore.getState().setEstadoMesa(pedido.mesaId, mesaEstado);
+    }
   },
 };
+
