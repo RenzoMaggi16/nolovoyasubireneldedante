@@ -21,6 +21,7 @@ import {
   History,
   ShieldCheck,
   Receipt,
+  Truck,
   LucideIcon,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -35,6 +36,7 @@ const TODOS_NAV_ITEMS: Array<{ seccion: Seccion; href: string; icon: LucideIcon;
   { seccion: 'pedidos',        href: '/dashboard/pedido',         icon: ClipboardList,   label: 'Pedidos' },
   { seccion: 'cocina',         href: '/dashboard/cocina',         icon: ChefHat,         label: 'Cocina' },
   { seccion: 'cajero',         href: '/dashboard/cajero',         icon: Receipt,         label: 'Caja' },
+  { seccion: 'delivery',       href: '/delivery',                 icon: Truck,           label: 'Delivery' },
   { seccion: 'historial',      href: '/dashboard/historial',      icon: History,         label: 'Historial' },
   { seccion: 'stock',          href: '/dashboard/stock',          icon: Package,         label: 'Stock' },
   { seccion: 'reservas',       href: '/dashboard/reservas',       icon: CalendarDays,    label: 'Reservas' },

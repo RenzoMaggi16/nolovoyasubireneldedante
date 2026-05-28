@@ -20,16 +20,18 @@ const RUTA_A_SECCION: Record<string, string> = {
   '/dashboard/reservas':       'reservas',
   '/dashboard/administracion': 'administracion',
   '/cocina':                   'cocina',
+  '/delivery':                 'delivery',
 };
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Rutas protegidas: dashboard/* y /cocina
+  // Rutas protegidas: dashboard/*, /cocina, /delivery
   const esDashboard = pathname.startsWith('/dashboard');
   const esCocina = pathname.startsWith('/cocina');
+  const esDelivery = pathname.startsWith('/delivery');
 
-  if (!esDashboard && !esCocina) {
+  if (!esDashboard && !esCocina && !esDelivery) {
     return NextResponse.next();
   }
 
@@ -76,5 +78,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/cocina/:path*', '/cocina'],
+  matcher: ['/dashboard/:path*', '/cocina/:path*', '/cocina', '/delivery/:path*', '/delivery'],
 };

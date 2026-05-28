@@ -15,14 +15,15 @@ export type Seccion =
   | 'stock'
   | 'reservas'
   | 'administracion'
-  | 'cajero';
+  | 'cajero'
+  | 'delivery';
 
 /** Qué secciones puede ver cada rol */
 export const SECCIONES_POR_ROL: Record<RolUsuario, Seccion[]> = {
-  admin:   ['mesas', 'pedidos', 'cocina', 'historial', 'stock', 'reservas', 'administracion'],
-  mozo:    ['mesas', 'pedidos', 'stock', 'reservas'],
+  admin:   ['mesas', 'pedidos', 'cocina', 'historial', 'stock', 'reservas', 'administracion', 'delivery'],
+  mozo:    ['mesas', 'pedidos', 'stock', 'reservas', 'delivery'],
   cocina:  ['cocina'],
-  cajero:  ['cajero', 'historial'],
+  cajero:  ['cajero', 'historial', 'delivery'],
 };
 
 /** Primera ruta a la que redirigir según el rol */
@@ -43,6 +44,7 @@ export const RUTA_POR_SECCION: Record<Seccion, string> = {
   reservas:       '/dashboard/reservas',
   administracion: '/dashboard/administracion',
   cajero:         '/dashboard/cajero',
+  delivery:       '/delivery',
 };
 
 /** Labels en español para cada sección */
@@ -55,6 +57,7 @@ export const LABEL_POR_SECCION: Record<Seccion, string> = {
   reservas:       'Reservas',
   administracion: 'Administración',
   cajero:         'Caja',
+  delivery:       'Delivery',
 };
 
 /** Verifica si un rol tiene acceso a una sección */

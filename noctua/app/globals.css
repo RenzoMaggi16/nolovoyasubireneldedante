@@ -6,6 +6,17 @@
   --font-display: 'Bebas Neue', sans-serif;
   --font-sans: 'IBM Plex Sans', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
+
+  /* Platform Colors */
+  --color-pedidosya: #FF0F50;
+  --color-rappi: #FF441F;
+  --color-glovo: #FFC244;
+  --color-ubereats: #06C167;
+
+  /* UI Colors */
+  --color-surface-base: #1a1a1a;
+  --color-surface-card: #242424;
+  --color-surface-hover: #2a2a2a;
 }
 
 * {
